@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>On-Chain Attendance Tracker</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    /* --- same styles as your previous version --- */
     body {
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
@@ -201,21 +200,42 @@
       // paste your ABI from Remix here
     ];
 
-
     async function connectWallet() {
-      if (window.ethereum) {
-        try {
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          await provider.send("eth_requestAccounts", []);
-          signer = provider.getSigner();
-          contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-          const address = await signer.getAddress();
-          document.getElementById("walletStatus").innerText = "✅ Wallet Connected: " + address;
-        } catch (err) {
-          alert("❌ Connection failed: " + err.message);
-        }
-      } else {
-        alert("MetaMask not detected!");
+      if (!window.ethereum) return alert("MetaMask not detected!");
+
+      try {
+        // Request accounts
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+        // Switch to Shardeum Unstablenet
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x1F90' }] // 8080 in hex
+        }).catch(async (err) => {
+          if (err.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x1F90',
+                chainName: 'Shardeum Unstablenet',
+                rpcUrls: ['https://api-unstable.shardeum.org'],
+                nativeCurrency: { name: 'SHM', symbol: 'SHM', decimals: 18 },
+                blockExplorerUrls: ['https://explorer-unstable.shardeum.org']
+              }]
+            });
+          } else {
+            throw err;
+          }
+        });
+
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        const address = await signer.getAddress();
+        document.getElementById("walletStatus").innerText = "✅ Wallet Connected: " + address;
+
+      } catch (err) {
+        alert("❌ Connection failed: " + err.message);
       }
     }
 
@@ -252,7 +272,6 @@
       }
     }
 
-    // ✅ Add event listeners after DOM loaded
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById("connectBtn").addEventListener("click", connectWallet);
       document.getElementById("registerBtn").addEventListener("click", registerStudent);
@@ -260,7 +279,5 @@
       document.getElementById("checkBtn").addEventListener("click", getAttendance);
     });
   </script>
-	<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-
 </body>
 </html>
